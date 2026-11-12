@@ -1540,6 +1540,9 @@ declare function require(id: string): any
 		// sidebar's tab content area.
 		var INPUT_ROUTE = '/api/ego/input'
 		var FLUSH_ROUTE = '/api/ego/flush'
+		// Mouse moves are coalesced: at most one in flight, at least this far apart.
+		var MOVE_MIN_MS = 50
+		var INPUT_TIMEOUT_MS = 5000
 		var FRAME_FOLLOW_MIN_MS = 350
 
 		// ── Tab CSS (scoped under .dsh-ego-side-root) ──────────────────────────
@@ -2528,21 +2531,73 @@ declare function require(id: string): any
 				}
 			}
 		}
-		LivePreviewController.prototype.sendInput = function (targetId, type, params) {
-			var targetValid = !!targetId
-			if (!targetValid || this.disposed || ((type !== 'mouseReleased' && type !== 'keyUp') && !this.visible)) return
+		LivePreviewController.prototype._postInput = function (targetId, type, params) {
 			var self = this
-			void fetch(INPUT_ROUTE, {
+			var opts: RequestInit = {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(Object.assign({ targetId: targetId, type: type }, params)),
-			}).then(function (res) {
+			}
+			// A stuck request must not hold the move channel forever.
+			if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(INPUT_TIMEOUT_MS)
+			return fetch(INPUT_ROUTE, opts).then(function (res) {
 				if (res.status === 409) {
 					self.liveImgTargetId = null
 					self._pointerState = null
 					self.refresh()
 				}
 			}).catch(function () {})
+		}
+		LivePreviewController.prototype._inputChannel = function (kind) {
+			var q = this._inputQ || (this._inputQ = {})
+			return q[kind] || (q[kind] = { pending: null, inFlight: false, lastAt: 0, timer: null })
+		}
+		// One request in flight per channel. Without this every pointermove was its
+		// own fetch; on a slow link they pile up faster than they return until the
+		// browser fails them with net::ERR_INSUFFICIENT_RESOURCES.
+		LivePreviewController.prototype._pumpInput = function (kind) {
+			var self = this
+			var s = this._inputChannel(kind)
+			if (s.inFlight || !s.pending || this.disposed) return
+			var wait = kind === 'mouseMoved' ? MOVE_MIN_MS - (Date.now() - s.lastAt) : 0
+			if (wait > 0) {
+				if (!s.timer) s.timer = window.setTimeout(function () { s.timer = null; self._pumpInput(kind) }, wait)
+				return
+			}
+			var item = s.pending
+			s.pending = null
+			s.inFlight = true
+			s.lastAt = Date.now()
+			this._postInput(item.targetId, kind, item.params).then(function () {
+				s.inFlight = false
+				self._pumpInput(kind)
+			})
+		}
+		LivePreviewController.prototype.sendInput = function (targetId, type, params) {
+			var targetValid = !!targetId
+			if (!targetValid || this.disposed || ((type !== 'mouseReleased' && type !== 'keyUp') && !this.visible)) return
+			if (type === 'mouseMoved') {
+				// Only the latest position matters.
+				this._inputChannel('mouseMoved').pending = { targetId: targetId, params: params }
+				this._pumpInput('mouseMoved')
+				return
+			}
+			if (type === 'mouseWheel') {
+				// Scroll distance must not be lost, so deltas are summed.
+				var w = this._inputChannel('mouseWheel')
+				if (w.pending && w.pending.targetId === targetId) {
+					w.pending.params = Object.assign({}, params, {
+						deltaX: (w.pending.params.deltaX || 0) + (params.deltaX || 0),
+						deltaY: (w.pending.params.deltaY || 0) + (params.deltaY || 0),
+					})
+				} else w.pending = { targetId: targetId, params: params }
+				this._pumpInput('mouseWheel')
+				return
+			}
+			// Press / release / keys carry their own coordinates: drop a move that has
+			// not left yet so it cannot land after them, and send at once.
+			this._inputChannel('mouseMoved').pending = null
+			void this._postInput(targetId, type, params)
 		}
 		// A window resize answers with the exact new page viewport. Record it
 		// immediately: the frame metadata that feeds click mapping arrives a
