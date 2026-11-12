@@ -12,6 +12,7 @@ import { CaptureManager } from './capture-manager.ts'
 import { captureSnapshot } from './snapshot.ts'
 import { FfmpegCaptureBackend } from './capture-ffmpeg.ts'
 import { computeWindowBounds, widthWithDelta, clampViewportSize } from './window-size.ts'
+import { NativeWindowError, clampBounds, grabFrame, readBrowserDisplay, screenSize, sendNativeInput, type NativeBounds, type NativeDisplayEnv } from './native-window.ts'
 
 const SENTINEL = '@@DSH_RESULT@@'
 const HOME = homedir() || process.env.HOME || process.env.USERPROFILE || '/root'
@@ -250,6 +251,37 @@ async function resolveBrowser(): Promise<{ wsUrl: string; port: number | null } 
     const wsUrl = response.ok ? (await response.json() as { webSocketDebuggerUrl?: string }).webSocketDebuggerUrl : null
     return wsUrl ? { port: state.port ?? null, wsUrl } : null
   } catch { return null }
+}
+
+/**
+ * Full-window mode (Linux/X11): where the browser's real window sits on its X
+ * display. Throws a coded NativeWindowError the panel can act on — notably
+ * `native-window-headless`, which the panel answers by popping the window out.
+ */
+async function resolveNativeWindow(targetId: string): Promise<{ env: NativeDisplayEnv; bounds: NativeBounds }> {
+  if (platform() !== 'linux') throw new NativeWindowError('native-unsupported-platform', 'full-window mode is only available on Linux/X11 hosts')
+  if (!active) throw new NativeWindowError('browser-disconnected', 'no live browser')
+  const state = await readBrowserState() as { pid?: number; headless?: boolean } | null
+  if (state?.headless) throw new NativeWindowError('native-window-headless', 'the agent browser is headless; pop it out as a real window first')
+  const env = await readBrowserDisplay(state?.pid ?? 0)
+  if (!env) throw new NativeWindowError('native-display-missing', 'the agent browser has no X display')
+  const win = await active.cdp.call('Browser.getWindowForTarget', { targetId }) as { bounds?: Partial<NativeBounds> }
+  const raw = win.bounds
+  if (!raw || ![raw.left, raw.top, raw.width, raw.height].every((v) => Number.isFinite(v))) throw new NativeWindowError('native-window-missing', 'browser window bounds are unavailable')
+  const bounds = clampBounds(raw as NativeBounds, await screenSize(env))
+  if (!bounds) throw new NativeWindowError('native-window-missing', 'browser window is outside the display')
+  return { env, bounds }
+}
+
+function nativeErrorStatus(code: string): number {
+  if (code === 'native-input-invalid') return 400
+  if (code === 'native-grab-failed' || code === 'native-input-failed' || code === 'native-grab-empty') return 503
+  return 409
+}
+
+function sendNativeError(res: ServerResponse, error: unknown): void {
+  const code = error instanceof NativeWindowError ? error.code : 'native-window-failed'
+  sendJson(res, error instanceof NativeWindowError ? nativeErrorStatus(code) : 503, { ok: false, code, error: (error as Error)?.message || String(error) })
 }
 
 async function listTargets(): Promise<Array<{ targetId: string; url: string; title: string; type: string }>> {
@@ -575,6 +607,22 @@ async function main(): Promise<void> {
           return sendJson(res, 200, await active.sessions.sendInput(body.targetId as string, body))
         } catch (error) {
           return sendJson(res, 503, { ok: false, code: 'input-dispatch-failed', error: (error as Error).message || String(error) })
+        }
+      }
+      if (req.method === 'POST' && (url.pathname === '/api/native/frame' || url.pathname === '/api/native/input')) {
+        const body = await readJson(req)
+        if (typeof body.targetId !== 'string' || !body.targetId) return sendJson(res, 400, { ok: false, code: 'target-required', error: 'targetId required' })
+        try {
+          const { env, bounds } = await resolveNativeWindow(body.targetId)
+          if (url.pathname === '/api/native/input') {
+            await sendNativeInput({ env, bounds, event: body })
+            return sendJson(res, 200, { ok: true })
+          }
+          const maxWidth = typeof body.maxWidth === 'number' && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : 1280
+          const jpeg = await grabFrame({ env, bounds, ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || 'ffmpeg', maxWidth })
+          return sendJson(res, 200, { ok: true, width: bounds.width, height: bounds.height, jpeg: jpeg.toString('base64') })
+        } catch (error) {
+          return sendNativeError(res, error)
         }
       }
       if (req.method === 'POST' && url.pathname === '/api/navigate') {

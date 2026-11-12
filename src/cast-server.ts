@@ -39,6 +39,8 @@ export const EGO_RAISE_ROUTE = '/api/ego/raise'
 export const EGO_LOGIN_IMPORT_ROUTE = '/api/ego/login-import'
 export const EGO_INPUT_ROUTE = '/api/ego/input'
 export const EGO_NAVIGATE_ROUTE = '/api/ego/navigate'
+export const EGO_NATIVE_FRAME_ROUTE = '/api/ego/native/frame'
+export const EGO_NATIVE_INPUT_ROUTE = '/api/ego/native/input'
 export const EGO_WINDOW_SIZE_ROUTE = '/api/ego/window-size'
 export const EGO_WATCH_START_ROUTE = '/api/ego/watch/start'
 export const EGO_WATCH_SWITCH_ROUTE = '/api/ego/watch/switch'
@@ -524,6 +526,25 @@ export function initCastServer(
     },
   })
 
+  // POST /api/ego/native/{frame,input} — full-window mode (Linux/X11). The
+  // worker grabs the browser's real X11 window and injects X-level input, so
+  // browser-native prompts the page-layer screencast cannot show stay usable.
+  const disposeNative = [[EGO_NATIVE_FRAME_ROUTE, '/api/native/frame'], [EGO_NATIVE_INPUT_ROUTE, '/api/native/input']].map(([path, workerPath]) => server.register({
+    kind: 'exact',
+    path: path!,
+    handler: async (reqRaw: unknown, resRaw: unknown) => {
+      const req = reqRaw as IncomingMessage
+      const res = resRaw as ServerResponse
+      if (relayDisabled()) return refuseFrameRelay(res, { error: FRAME_RELAY_DISABLED })
+      const port = await ensureWorker()
+      if (port === null) return sendJson(res, 400, { ok: false, error: 'no live agent browser' })
+      const body = await readJsonBody(req).catch(() => ({}) as Record<string, unknown>)
+      const result = await proxyPost(port, workerPath!, body, 10000)
+      if (!result) return sendJson(res, 502, { ok: false, error: 'worker unavailable' })
+      return sendJson(res, result.status, result.body)
+    },
+  }))
+
   // POST /api/ego/navigate — panel refresh / manual URL. The worker performs
   // Page.reload or Page.navigate on the selected target without activating a
   // different tab.
@@ -801,6 +822,7 @@ export function initCastServer(
     try { disposeSpaces() } catch { /* ignore */ }
     try { disposeStream() } catch { /* ignore */ }
     try { disposeInput() } catch { /* ignore */ }
+    for (const dispose of disposeNative) { try { dispose() } catch { /* ignore */ } }
     try { disposeNavigate() } catch { /* ignore */ }
     try { disposeWindowSize() } catch { /* ignore */ }
     try { disposeExecutor() } catch { /* ignore */ }

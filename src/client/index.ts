@@ -184,6 +184,13 @@ declare function require(id: string): any
 			noActiveHint: 'Pages will appear here as the agent browses with ego_*',
 			openExternal: 'Open real page',
 		raiseWindow: 'Pop out window',
+		nativeWindow: 'Full window',
+		nativeWindowHint: 'Show and operate the whole browser window (address bar, native prompts) through the host display. Linux/X11 hosts only; low frame rate.',
+		nativeStarting: 'Opening the full window…',
+		nativePopping: 'Switching the agent browser to a real window…',
+		nativeUnsupported: 'Full-window mode needs a Linux/X11 host.',
+		nativeError: 'Full window unavailable: {error}',
+		nativeKeysHint: 'Click the picture, then type. Clicks and keys go to the real window.',
 		raiseWindowHint: 'Raise the agent browser as a real window (a headless instance is replaced by a visible one on the same profile)',
 			sizeSyncOff: '🔒 Size lock',
 			sizeSyncOn: '🔓 Size sync',
@@ -266,6 +273,13 @@ declare function require(id: string): any
 			noActiveHint: '当 agent 开始用 ego_* 操作网页时，这里会实时显示',
 			openExternal: '⧉ 打开真实页',
 		raiseWindow: '弹出窗口',
+		nativeWindow: '完整窗口',
+		nativeWindowHint: '通过宿主显示器显示并操作整个浏览器窗口（地址栏、原生弹窗都能看能点）。仅 Linux/X11 宿主可用，帧率较低。',
+		nativeStarting: '正在打开完整窗口…',
+		nativePopping: '正在把 agent 浏览器切换为真实窗口…',
+		nativeUnsupported: '完整窗口模式需要 Linux/X11 宿主。',
+		nativeError: '完整窗口不可用：{error}',
+		nativeKeysHint: '先点一下画面再打字；点击和按键会送到真实窗口。',
 		raiseWindowHint: '把 agent 浏览器弹出为真实窗口（无头实例会被同 Profile 的有头实例替换，标签页保留）',
 			sizeSyncOff: '🔒 锁定尺寸',
 			sizeSyncOn: '🔓 尺寸同步',
@@ -1540,6 +1554,10 @@ declare function require(id: string): any
 		// sidebar's tab content area.
 		var INPUT_ROUTE = '/api/ego/input'
 		var FLUSH_ROUTE = '/api/ego/flush'
+		var NATIVE_FRAME_ROUTE = '/api/ego/native/frame'
+		var NATIVE_INPUT_ROUTE = '/api/ego/native/input'
+		var NATIVE_POLL_MS = 400
+		var NATIVE_KEYS = { Enter: 1, Escape: 1, Tab: 1, Backspace: 1, Delete: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Home: 1, End: 1, PageUp: 1, PageDown: 1 }
 		// Mouse moves are coalesced: at most one in flight, at least this far apart.
 		var MOVE_MIN_MS = 50
 		var INPUT_TIMEOUT_MS = 5000
@@ -1786,6 +1804,16 @@ declare function require(id: string): any
 }
 .dsh-ego-side-preset-item:hover { background: var(--ego-hover); }
 .dsh-ego-side-stage { position: relative; display: block; min-height: 0; }
+.dsh-ego-side-native {
+  position: absolute; inset: 0; z-index: 11; overflow: auto; outline: none;
+  background: var(--ego-surface); border-radius: var(--ego-radius-l);
+}
+.dsh-ego-side-native:focus-visible { box-shadow: 0 0 0 2px var(--ego-accent); }
+.dsh-ego-side-native-img { display: block; width: 100%; height: auto; cursor: default; user-select: none; }
+.dsh-ego-side-native-note {
+  position: sticky; top: 0; z-index: 1; padding: 4px 8px; font-size: var(--ego-fs-meta);
+  color: var(--ego-text-2); background: var(--ego-toolbar); border-bottom: 1px solid var(--ego-border-soft);
+}
 .dsh-ego-side-resize { position: absolute; z-index: 10; background: transparent; }
 .dsh-ego-side-resize-right { top: 0; bottom: 0; right: 0; width: 12px; cursor: col-resize; }
 .dsh-ego-side-resize-bottom { left: 0; right: 0; bottom: 0; height: 12px; cursor: row-resize; }
@@ -2855,6 +2883,9 @@ declare function require(id: string): any
 			var sizeSyncState = React.useState(sizeSync.isEnabled())
 			var sizeSyncOn = sizeSyncState[0]
 			var setSizeSyncOn = sizeSyncState[1]
+			var nativeState = React.useState(false)
+			var nativeOn = nativeState[0]
+			var setNativeOn = nativeState[1]
 
 			// #73: executor diagnostics from the host (resident/one-shot, pid,
 			// age, last rebuild reason). Polled slowly; failures are silent.
@@ -3418,6 +3449,7 @@ declare function require(id: string): any
 								h('div', { className: 'dsh-ego-side-btngroup' },
 									h('button', { className: 'dsh-ego-side-back', type: 'button', title: wt('openExternal'), onClick: function () { var url = currentSpace.url; if (url && !url.startsWith('about:') && !url.startsWith('chrome://')) window.open(url, '_blank', 'noopener') } }, icon(ICON_OPEN_EXTERNAL), wt('openExternal')),
 									h('button', { className: 'dsh-ego-side-back', type: 'button', title: wt('raiseWindowHint'), onClick: function () { fetch('/api/ego/raise', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).then(function (r) { return r.json().catch(function () { return null }) }).catch(function () { return null }) } }, icon(ICON_POPOUT), wt('raiseWindow')),
+									h('button', { className: 'dsh-ego-side-back' + (nativeOn ? ' dsh-ego-side-back-on' : ''), type: 'button', title: wt('nativeWindowHint'), disabled: !currentSpace, onClick: function () { setNativeOn(!nativeOn) } }, icon(ICON_POPOUT), wt('nativeWindow')),
 									h('button', { className: 'dsh-ego-side-back', type: 'button', title: wt('refreshHint'), disabled: !currentSpace, onClick: function () { panelNavigate('', true) } }, icon(ICON_REFRESH), wt('refreshPage')),
 									h('button', { className: 'dsh-ego-side-back', type: 'button', title: wt('openUrlHint'), disabled: !currentSpace, onClick: openUrlInPanel }, icon(ICON_LINK), wt('openUrl'))
 								),
@@ -3431,6 +3463,7 @@ declare function require(id: string): any
 						),
 						h('div', { className: 'dsh-ego-side-stage' + (sizeSyncOn ? ' dsh-ego-size-unlocked' : ''), ref: stageRef },
 							liveImg,
+							nativeOn && state.currentTargetId != null ? h(EgoNativeWindow, { key: 'native', targetId: state.currentTargetId }) : null,
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-right', title: wt('resizeHint'), onPointerDown: beginResize('x') }),
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-bottom', title: wt('resizeHint'), onPointerDown: beginResize('y') }),
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-corner', title: wt('resizeHint'), onPointerDown: beginResize('xy') })
@@ -3454,6 +3487,105 @@ declare function require(id: string): any
 					: null,
 				body,
 				pairbox
+			)
+		}
+
+		// Full-window mode: the page-layer screencast cannot show browser-native UI
+		// (external-protocol prompts, permission bubbles, the omnibox) and CDP input
+		// cannot reach it, while a tab-modal prompt makes Chrome drop every CDP input.
+		// This overlay polls a grab of the real X11 window and sends X-level input.
+		function EgoNativeWindow(props) {
+			var h = React.createElement
+			var targetId = props.targetId
+			var imgRef = React.useRef(null)
+			var sizeRef = React.useRef(null)
+			var noteState = React.useState(wt('nativeStarting'))
+			var note = noteState[0], setNote = noteState[1]
+			function post(path, body) {
+				return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(function (r) { return r.json().catch(function () { return null }) })
+			}
+			function send(event) {
+				void post(NATIVE_INPUT_ROUTE, Object.assign({ targetId: targetId }, event)).catch(function () {})
+			}
+			function toWindow(e) {
+				var img = imgRef.current, size = sizeRef.current
+				if (!img || !size) return null
+				var rect = img.getBoundingClientRect()
+				if (!rect.width || !rect.height) return null
+				return { x: (e.clientX - rect.left) / rect.width * size.width, y: (e.clientY - rect.top) / rect.height * size.height }
+			}
+			React.useEffect(function () {
+				var stopped = false, timer = null, raised = false
+				function schedule(ms) { if (!stopped) timer = window.setTimeout(tick, ms) }
+				function tick() {
+					post(NATIVE_FRAME_ROUTE, { targetId: targetId, maxWidth: 1280 }).then(function (data) {
+						if (stopped) return
+						if (data && data.ok && data.jpeg) {
+							sizeRef.current = { width: data.width, height: data.height }
+							if (imgRef.current) imgRef.current.src = 'data:image/jpeg;base64,' + data.jpeg
+							setNote(wt('nativeKeysHint'))
+							return schedule(NATIVE_POLL_MS)
+						}
+						var code = data && data.code
+						if (code === 'native-window-headless' && !raised) {
+							raised = true
+							setNote(wt('nativePopping'))
+							return post('/api/ego/raise', {}).catch(function () { return null }).then(function () { schedule(1500) })
+						}
+						setNote(code === 'native-unsupported-platform' ? wt('nativeUnsupported') : wt('nativeError', { error: (data && (data.error || data.code)) || 'unavailable' }))
+						schedule(3000)
+					}).catch(function () {
+						if (stopped) return
+						setNote(wt('nativeError', { error: 'network' }))
+						schedule(3000)
+					})
+				}
+				tick()
+				return function () { stopped = true; if (timer) window.clearTimeout(timer) }
+			}, [targetId])
+			// Wheel needs a non-passive listener to stop the panel itself scrolling;
+			// deltas are summed and flushed so a spin is a few requests, not dozens.
+			React.useEffect(function () {
+				var el = imgRef.current
+				if (!el) return
+				var pending = 0, point = null, timer = null
+				function onWheel(e) {
+					var p = toWindow(e)
+					if (!p) return
+					e.preventDefault()
+					pending += e.deltaY
+					point = p
+					if (timer) return
+					timer = window.setTimeout(function () {
+						timer = null
+						if (pending && point) send({ type: 'wheel', x: point.x, y: point.y, deltaY: pending })
+						pending = 0
+					}, 150)
+				}
+				el.addEventListener('wheel', onWheel, { passive: false })
+				return function () { el.removeEventListener('wheel', onWheel); if (timer) window.clearTimeout(timer) }
+			}, [targetId])
+			return h('div', {
+				className: 'dsh-ego-side-native',
+				tabIndex: 0,
+				onKeyDown: function (e) {
+					if (e.ctrlKey || e.metaKey || e.altKey) return
+					if (NATIVE_KEYS[e.key]) send({ type: 'key', key: e.key })
+					else if (e.key && e.key.length === 1) send({ type: 'text', text: e.key })
+					else return
+					e.preventDefault()
+					e.stopPropagation()
+				},
+			},
+				note ? h('div', { className: 'dsh-ego-side-native-note' }, note) : null,
+				h('img', {
+					ref: imgRef,
+					className: 'dsh-ego-side-native-img',
+					alt: '',
+					draggable: false,
+					onClick: function (e) { var p = toWindow(e); if (p) send({ type: 'click', x: p.x, y: p.y, button: 1 }) },
+					onContextMenu: function (e) { e.preventDefault(); var p = toWindow(e); if (p) send({ type: 'click', x: p.x, y: p.y, button: 3 }) },
+				})
 			)
 		}
 
