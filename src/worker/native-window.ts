@@ -13,6 +13,7 @@
  * screencast backends.
  */
 import { execFile as nodeExecFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 
@@ -48,6 +49,19 @@ export const NATIVE_KEYS: Record<string, string> = {
 }
 
 export const NATIVE_TEXT_MAX = 500
+
+/**
+ * Frame defaults, measured on an image-heavy page at 1280x900: 1280 wide at
+ * q6 is ~214 KB per frame, 960 wide at q14 is ~78 KB and still reads fine for
+ * a prompt-handling view. Frames travel base64-encoded (+33%), so this matters.
+ */
+export const NATIVE_FRAME_MAX_WIDTH = 960
+export const NATIVE_FRAME_QUALITY = 14
+
+/** Short content tag: lets the panel skip a frame it already shows. */
+export function frameTag(jpeg: Buffer): string {
+  return createHash('sha1').update(jpeg).digest('base64url').slice(0, 16)
+}
 
 /** Parse DISPLAY / XAUTHORITY out of a NUL-separated /proc/<pid>/environ blob. */
 export function parseDisplayEnv(environ: string): NativeDisplayEnv | null {
@@ -95,7 +109,7 @@ export function clampBounds(bounds: NativeBounds, screen: { width: number; heigh
   return { left, top, width, height }
 }
 
-export function buildGrabArgs({ display, bounds, maxWidth = 1280, quality = 6 }: { display: string; bounds: NativeBounds; maxWidth?: number; quality?: number }): string[] {
+export function buildGrabArgs({ display, bounds, maxWidth = NATIVE_FRAME_MAX_WIDTH, quality = NATIVE_FRAME_QUALITY }: { display: string; bounds: NativeBounds; maxWidth?: number; quality?: number }): string[] {
   const args = [
     '-nostdin', '-loglevel', 'error',
     '-f', 'x11grab', '-draw_mouse', '1',

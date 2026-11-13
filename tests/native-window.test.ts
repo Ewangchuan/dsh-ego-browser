@@ -4,6 +4,7 @@ import {
   buildGrabArgs,
   buildXdotoolArgs,
   clampBounds,
+  frameTag,
   grabFrame,
   parseDisplayEnv,
   readBrowserDisplay,
@@ -64,6 +65,19 @@ describe('native window: geometry', () => {
     expect(args.slice(args.indexOf('-video_size'), args.indexOf('-video_size') + 4)).toEqual(['-video_size', '1280x900', '-i', ':99+10,20'])
     expect(args).not.toContain('-vf')
     expect(args.slice(-5)).toEqual(['-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'])
+  })
+
+  it('defaults to the low-bandwidth frame size and quality', () => {
+    const args = buildGrabArgs({ display: ':99', bounds })
+    expect(args[args.indexOf('-vf') + 1]).toBe('scale=960:-2')
+    expect(args[args.indexOf('-q:v') + 1]).toBe('14')
+  })
+
+  it('tags identical frames identically so the panel can skip them', () => {
+    const a = Buffer.from([0xff, 0xd8, 1, 2, 3, 0xff, 0xd9])
+    expect(frameTag(a)).toBe(frameTag(Buffer.from(a)))
+    expect(frameTag(a)).not.toBe(frameTag(Buffer.from([0xff, 0xd8, 1, 2, 4, 0xff, 0xd9])))
+    expect(frameTag(a)).toMatch(/^[A-Za-z0-9_-]{16}$/)
   })
 
   it('downscales only when the window is wider than maxWidth', () => {

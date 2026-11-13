@@ -1557,6 +1557,7 @@ declare function require(id: string): any
 		var NATIVE_FRAME_ROUTE = '/api/ego/native/frame'
 		var NATIVE_INPUT_ROUTE = '/api/ego/native/input'
 		var NATIVE_POLL_MS = 400
+		var NATIVE_MAX_WIDTH = 960
 		var NATIVE_KEYS = { Enter: 1, Escape: 1, Tab: 1, Backspace: 1, Delete: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Home: 1, End: 1, PageUp: 1, PageDown: 1 }
 		// Mouse moves are coalesced: at most one in flight, at least this far apart.
 		var MOVE_MIN_MS = 50
@@ -2886,6 +2887,8 @@ declare function require(id: string): any
 			var nativeState = React.useState(false)
 			var nativeOn = nativeState[0]
 			var setNativeOn = nativeState[1]
+			var nativeRef = React.useRef(nativeOn)
+			nativeRef.current = nativeOn
 
 			// #73: executor diagnostics from the host (resident/one-shot, pid,
 			// age, last rebuild reason). Polled slowly; failures are silent.
@@ -3220,15 +3223,17 @@ declare function require(id: string): any
 				return function () { if (observer) { try { observer.disconnect() } catch (e) {} } }
 			}, [visible, controller])
 
+			// Full-window mode shows its own picture: keep the page screencast (the
+			// heaviest traffic the panel causes) off while it is covered.
 			React.useEffect(function () {
-				controller.setVisible(visible && !document.hidden)
-			}, [visible, controller])
+				controller.setVisible(visible && !nativeOn && !document.hidden)
+			}, [visible, nativeOn, controller])
 
 			// Minimizing the DSH window (or hiding it) must stop the screencast:
 			// there is nothing to look at, and continuous capture is the bulk of
 			// the CPU cost. Coming back restores the watch and stream.
 			React.useEffect(function () {
-				var onVisibility = function () { controller.setVisible(!!visibleRef.current && !document.hidden) }
+				var onVisibility = function () { controller.setVisible(!!visibleRef.current && !nativeRef.current && !document.hidden) }
 				document.addEventListener('visibilitychange', onVisibility)
 				return function () { document.removeEventListener('visibilitychange', onVisibility) }
 			}, [controller])
@@ -3463,7 +3468,7 @@ declare function require(id: string): any
 						),
 						h('div', { className: 'dsh-ego-side-stage' + (sizeSyncOn ? ' dsh-ego-size-unlocked' : ''), ref: stageRef },
 							liveImg,
-							nativeOn && state.currentTargetId != null ? h(EgoNativeWindow, { key: 'native', targetId: state.currentTargetId }) : null,
+							nativeOn && state.currentTargetId != null ? h(EgoNativeWindow, { key: 'native', targetId: state.currentTargetId, onStale: function () { controller.refresh() } }) : null,
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-right', title: wt('resizeHint'), onPointerDown: beginResize('x') }),
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-bottom', title: wt('resizeHint'), onPointerDown: beginResize('y') }),
 							h('div', { className: 'dsh-ego-side-resize dsh-ego-side-resize-corner', title: wt('resizeHint'), onPointerDown: beginResize('xy') })
@@ -3515,17 +3520,29 @@ declare function require(id: string): any
 				return { x: (e.clientX - rect.left) / rect.width * size.width, y: (e.clientY - rect.top) / rect.height * size.height }
 			}
 			React.useEffect(function () {
-				var stopped = false, timer = null
+				var stopped = false, timer = null, etag = null
 				function schedule(ms) { if (!stopped) timer = window.setTimeout(tick, ms) }
 				function tick() {
-					post(NATIVE_FRAME_ROUTE, { targetId: targetId, maxWidth: 1280 }).then(function (data) {
+					// Nobody is looking: do not pull frames at all.
+					if (document.hidden) return schedule(1000)
+					var started = Date.now()
+					// The worker answers `unchanged` instead of resending a frame whose
+					// tag we already hold, so a still window costs almost nothing.
+					post(NATIVE_FRAME_ROUTE, { targetId: targetId, maxWidth: NATIVE_MAX_WIDTH, etag: etag }).then(function (data) {
 						if (stopped) return
-						if (data && data.ok && data.jpeg) {
+						if (data && data.ok) {
 							sizeRef.current = { width: data.width, height: data.height }
-							if (imgRef.current) imgRef.current.src = 'data:image/jpeg;base64,' + data.jpeg
+							if (data.jpeg) {
+								etag = data.etag || null
+								if (imgRef.current) imgRef.current.src = 'data:image/jpeg;base64,' + data.jpeg
+							}
 							setNote(wt('nativeKeysHint'))
-							return schedule(NATIVE_POLL_MS)
+							// Rest at least as long as the frame took, so a slow link is
+							// never more than half busy with frames and input stays snappy.
+							return schedule(Math.max(NATIVE_POLL_MS, Date.now() - started))
 						}
+						// The target may have gone away while the page stream is paused.
+						if (props.onStale) props.onStale()
 						var code = data && data.code
 						// Never pop the window out from here: swapping a headless browser
 						// for a headed one restarts it and the page being used is lost.

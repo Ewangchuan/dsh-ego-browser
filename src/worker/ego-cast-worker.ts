@@ -12,7 +12,7 @@ import { CaptureManager } from './capture-manager.ts'
 import { captureSnapshot } from './snapshot.ts'
 import { FfmpegCaptureBackend } from './capture-ffmpeg.ts'
 import { computeWindowBounds, widthWithDelta, clampViewportSize } from './window-size.ts'
-import { NativeWindowError, clampBounds, grabFrame, readBrowserDisplay, screenSize, sendNativeInput, type NativeBounds, type NativeDisplayEnv } from './native-window.ts'
+import { NATIVE_FRAME_MAX_WIDTH, NativeWindowError, clampBounds, frameTag, grabFrame, readBrowserDisplay, screenSize, sendNativeInput, type NativeBounds, type NativeDisplayEnv } from './native-window.ts'
 
 const SENTINEL = '@@DSH_RESULT@@'
 const HOME = homedir() || process.env.HOME || process.env.USERPROFILE || '/root'
@@ -618,9 +618,12 @@ async function main(): Promise<void> {
             await sendNativeInput({ env, bounds, event: body })
             return sendJson(res, 200, { ok: true })
           }
-          const maxWidth = typeof body.maxWidth === 'number' && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : 1280
+          const maxWidth = typeof body.maxWidth === 'number' && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : NATIVE_FRAME_MAX_WIDTH
           const jpeg = await grabFrame({ env, bounds, ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || 'ffmpeg', maxWidth })
-          return sendJson(res, 200, { ok: true, width: bounds.width, height: bounds.height, jpeg: jpeg.toString('base64') })
+          const etag = frameTag(jpeg)
+          // Same picture the panel already has: answer in a few bytes, not ~100 KB.
+          if (body.etag === etag) return sendJson(res, 200, { ok: true, unchanged: true, etag, width: bounds.width, height: bounds.height })
+          return sendJson(res, 200, { ok: true, width: bounds.width, height: bounds.height, etag, jpeg: jpeg.toString('base64') })
         } catch (error) {
           return sendNativeError(res, error)
         }
