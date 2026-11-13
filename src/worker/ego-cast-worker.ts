@@ -12,7 +12,7 @@ import { CaptureManager } from './capture-manager.ts'
 import { captureSnapshot } from './snapshot.ts'
 import { FfmpegCaptureBackend } from './capture-ffmpeg.ts'
 import { computeWindowBounds, widthWithDelta, clampViewportSize } from './window-size.ts'
-import { NATIVE_FRAME_MAX_WIDTH, NativeWindowError, clampBounds, frameTag, grabFrame, readBrowserDisplay, screenSize, sendNativeInput, type NativeBounds, type NativeDisplayEnv } from './native-window.ts'
+import { NATIVE_FRAME_MAX_WIDTH, NATIVE_FRAME_QUALITY, NativeWindowError, clampBounds, frameMime, frameTag, grabFrame, readBrowserDisplay, screenSize, sendNativeInput, type NativeBounds, type NativeDisplayEnv } from './native-window.ts'
 
 const SENTINEL = '@@DSH_RESULT@@'
 const HOME = homedir() || process.env.HOME || process.env.USERPROFILE || '/root'
@@ -30,6 +30,9 @@ interface CastConfig {
   cdpQuality: number
   cdpMaxWidth: number
   cdpBackstopIntervalMs: number
+  nativeFps: number
+  nativeMaxWidth: number
+  nativeQuality: number
   ffmpegFps: number
   ffmpegMaxWidth: number
   ffmpegBitrateKbps: number
@@ -41,6 +44,7 @@ interface CastConfig {
 const DEFAULT_CONFIG: CastConfig = {
   captureBackend: 'auto', streamProfile: 'balanced', ffmpegFallbackReason: '',
   cdpFps: 20, cdpQuality: 55, cdpMaxWidth: 1280, cdpBackstopIntervalMs: 3000,
+  nativeFps: 2, nativeMaxWidth: NATIVE_FRAME_MAX_WIDTH, nativeQuality: NATIVE_FRAME_QUALITY,
   ffmpegFps: 20, ffmpegMaxWidth: 1280, ffmpegBitrateKbps: 4000, ffmpegEncoder: 'auto', ffmpegPath: '', ffmpegResolvedPath: '',
 }
 let castConfig: CastConfig = { ...DEFAULT_CONFIG }
@@ -112,6 +116,7 @@ function normalizeConfig(input: Record<string, unknown>): CastConfig {
   enumValue('streamProfile', ['low', 'balanced', 'high'])
   enumValue('ffmpegEncoder', ['auto', 'software', 'h264_mf', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_videotoolbox', 'h264_vaapi'])
   numberValue('cdpFps', 5, 30); numberValue('cdpQuality', 1, 100); numberValue('cdpMaxWidth', 320, 1920); numberValue('cdpBackstopIntervalMs', 1000, 10000)
+  numberValue('nativeFps', 1, 10); numberValue('nativeMaxWidth', 320, 1920); numberValue('nativeQuality', 1, 100)
   numberValue('ffmpegFps', 5, 30); numberValue('ffmpegMaxWidth', 320, 1920); numberValue('ffmpegBitrateKbps', 500, 20000)
   if (typeof input.ffmpegPath === 'string') next.ffmpegPath = input.ffmpegPath
   if (typeof input.ffmpegResolvedPath === 'string') next.ffmpegResolvedPath = input.ffmpegResolvedPath
@@ -618,12 +623,14 @@ async function main(): Promise<void> {
             await sendNativeInput({ env, bounds, event: body })
             return sendJson(res, 200, { ok: true })
           }
-          const maxWidth = typeof body.maxWidth === 'number' && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : NATIVE_FRAME_MAX_WIDTH
-          const jpeg = await grabFrame({ env, bounds, ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || 'ffmpeg', maxWidth })
+          // Size, quality and rate are the user's settings, not the caller's.
+          const quality = castConfig.nativeQuality
+          const jpeg = await grabFrame({ env, bounds, ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || 'ffmpeg', maxWidth: castConfig.nativeMaxWidth, quality })
+          const frame = { width: bounds.width, height: bounds.height, pollMs: Math.round(1000 / castConfig.nativeFps), mime: frameMime(quality) }
           const etag = frameTag(jpeg)
           // Same picture the panel already has: answer in a few bytes, not ~100 KB.
-          if (body.etag === etag) return sendJson(res, 200, { ok: true, unchanged: true, etag, width: bounds.width, height: bounds.height })
-          return sendJson(res, 200, { ok: true, width: bounds.width, height: bounds.height, etag, jpeg: jpeg.toString('base64') })
+          if (body.etag === etag) return sendJson(res, 200, { ok: true, unchanged: true, etag, ...frame })
+          return sendJson(res, 200, { ok: true, ...frame, etag, jpeg: jpeg.toString('base64') })
         } catch (error) {
           return sendNativeError(res, error)
         }

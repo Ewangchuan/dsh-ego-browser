@@ -52,11 +52,22 @@ export const NATIVE_TEXT_MAX = 500
 
 /**
  * Frame defaults, measured on an image-heavy page at 1280x900: 1280 wide at
- * q6 is ~214 KB per frame, 960 wide at q14 is ~78 KB and still reads fine for
+ * qscale 6 is ~214 KB per frame, 960 wide at quality 60 (qscale 14) is ~78 KB and still reads fine for
  * a prompt-handling view. Frames travel base64-encoded (+33%), so this matters.
  */
 export const NATIVE_FRAME_MAX_WIDTH = 960
-export const NATIVE_FRAME_QUALITY = 14
+export const NATIVE_FRAME_QUALITY = 60
+
+/** 1–100 quality → ffmpeg MJPEG qscale (2 best … 31 worst). 60 → 14. */
+export function jpegQscale(quality: number): number {
+  const q = Math.min(100, Math.max(1, quality))
+  return Math.round(31 - ((q - 1) / 99) * 29)
+}
+
+/** Quality 100 means "do not compress lossily": the frame is sent as PNG. */
+export function frameMime(quality: number): 'image/png' | 'image/jpeg' {
+  return quality >= 100 ? 'image/png' : 'image/jpeg'
+}
 
 /** Short content tag: lets the panel skip a frame it already shows. */
 export function frameTag(jpeg: Buffer): string {
@@ -119,7 +130,8 @@ export function buildGrabArgs({ display, bounds, maxWidth = NATIVE_FRAME_MAX_WID
   ]
   const width = Math.max(2, Math.floor(maxWidth / 2) * 2)
   if (width < bounds.width) args.push('-vf', `scale=${width}:-2`)
-  args.push('-q:v', String(Math.min(31, Math.max(2, Math.round(quality)))), '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1')
+  if (frameMime(quality) === 'image/png') args.push('-f', 'image2pipe', '-vcodec', 'png', 'pipe:1')
+  else args.push('-q:v', String(jpegQscale(quality)), '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1')
   return args
 }
 
@@ -199,7 +211,7 @@ export async function grabFrame({ env, bounds, ffmpegPath = 'ffmpeg', maxWidth, 
 }): Promise<Buffer> {
   try {
     const { stdout } = await run(ffmpegPath || 'ffmpeg', buildGrabArgs({ display: env.DISPLAY, bounds, maxWidth, quality }), {
-      env: childEnv(env), timeout: 6000, encoding: 'buffer', maxBuffer: 8 * 1024 * 1024,
+      env: childEnv(env), timeout: 6000, encoding: 'buffer', maxBuffer: 32 * 1024 * 1024,
     })
     const buffer = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout)
     if (buffer.length < 4) throw new NativeWindowError('native-grab-empty', 'screen grab returned no image')

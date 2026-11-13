@@ -799,6 +799,9 @@ interface EgoRuntimeConfig {
   readonly cdpQuality: number
   readonly cdpMaxWidth: number
   readonly cdpBackstopIntervalMs: number
+  readonly nativeFps: number
+  readonly nativeMaxWidth: number
+  readonly nativeQuality: number
   readonly ffmpegFps: number
   readonly ffmpegMaxWidth: number
   readonly ffmpegBitrateKbps: number
@@ -1854,7 +1857,7 @@ export function apply(ctx: EgoContext, config: RawConfig = {}): void {
   // via getters so every spawn reads the latest value without re-registration.
   const settingKeys = [
     'chromePath', 'useMockKeychain', 'captureBackend', 'streamProfile', 'cdpFps', 'cdpQuality',
-    'cdpMaxWidth', 'cdpBackstopIntervalMs', 'ffmpegFps', 'ffmpegMaxWidth', 'ffmpegBitrateKbps',
+    'cdpMaxWidth', 'cdpBackstopIntervalMs', 'nativeFps', 'nativeMaxWidth', 'nativeQuality', 'ffmpegFps', 'ffmpegMaxWidth', 'ffmpegBitrateKbps',
     'ffmpegEncoder', 'ffmpegPath', 'githubMirror', 'egoCliArgs', 'chromeArgs',
     'castFpsCap', 'screencastQuality', 'screencastMaxWidth', 'backstopIntervalMs',
     'idleTimeoutMin',
@@ -1915,6 +1918,9 @@ export function apply(ctx: EgoContext, config: RawConfig = {}): void {
     get cdpQuality() { return resolveConfig(bridge.source() as RawConfig).cdpQuality },
     get cdpMaxWidth() { return resolveConfig(bridge.source() as RawConfig).cdpMaxWidth },
     get cdpBackstopIntervalMs() { return resolveConfig(bridge.source() as RawConfig).cdpBackstopIntervalMs },
+    get nativeFps() { return resolveConfig(bridge.source() as RawConfig).nativeFps },
+    get nativeMaxWidth() { return resolveConfig(bridge.source() as RawConfig).nativeMaxWidth },
+    get nativeQuality() { return resolveConfig(bridge.source() as RawConfig).nativeQuality },
     get ffmpegFps() { return resolveConfig(bridge.source() as RawConfig).ffmpegFps },
     get ffmpegMaxWidth() { return resolveConfig(bridge.source() as RawConfig).ffmpegMaxWidth },
     get ffmpegBitrateKbps() { return resolveConfig(bridge.source() as RawConfig).ffmpegBitrateKbps },

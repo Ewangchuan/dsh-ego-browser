@@ -94,6 +94,9 @@ interface CaptureConfigPayload {
   cdpQuality: number
   cdpMaxWidth: number
   cdpBackstopIntervalMs: number
+  nativeFps: number
+  nativeMaxWidth: number
+  nativeQuality: number
   ffmpegFps: number
   ffmpegMaxWidth: number
   ffmpegBitrateKbps: number
@@ -113,6 +116,9 @@ export function captureConfig(cfg: ResolvedConfig, ffmpegManager: FfmpegInstalla
     cdpQuality: cfg.cdpQuality,
     cdpMaxWidth: cfg.cdpMaxWidth,
     cdpBackstopIntervalMs: cfg.cdpBackstopIntervalMs,
+    nativeFps: cfg.nativeFps,
+    nativeMaxWidth: cfg.nativeMaxWidth,
+    nativeQuality: cfg.nativeQuality,
     ffmpegFps: cfg.ffmpegFps,
     ffmpegMaxWidth: cfg.ffmpegMaxWidth,
     ffmpegBitrateKbps: cfg.ffmpegBitrateKbps,

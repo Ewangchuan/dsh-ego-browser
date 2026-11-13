@@ -36,7 +36,7 @@ const ALLOWED_KEYS = new Set<string>([
   'isolateSpaces', 'idleTimeoutMin', 'disableFrameRelay',
   'residentExecutor', 'residentIdleMin',
   'chromePath', 'useMockKeychain', 'captureBackend', 'streamProfile', 'cdpFps', 'cdpQuality',
-  'cdpMaxWidth', 'cdpBackstopIntervalMs', 'ffmpegFps', 'ffmpegMaxWidth', 'ffmpegBitrateKbps',
+  'cdpMaxWidth', 'cdpBackstopIntervalMs', 'nativeFps', 'nativeMaxWidth', 'nativeQuality', 'ffmpegFps', 'ffmpegMaxWidth', 'ffmpegBitrateKbps',
   'ffmpegEncoder', 'ffmpegPath', 'githubMirror', 'egoCliArgs', 'chromeArgs',
 ])
 

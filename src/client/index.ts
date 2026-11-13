@@ -108,7 +108,7 @@ declare function require(id: string): any
 			useMockKeychainHint: 'macOS only. Chrome 156+/macOS 26+ can stop writing cookies to disk (logins vanish after a browser restart, issue #93); this flag makes Chrome use its mock/test Keychain so the jar flushes again — the write lands ~60s later, not instantly. It weakens at-rest cookie encryption, so keep it off unless you hit that bug. Requires a browser cold start (run `ego-browser --stop` or restart DSH).',
 			useMockKeychainOff: 'Off (default; login Keychain)',
 			useMockKeychainOn: 'On (mock Keychain — fixes macOS cookie loss)',
-			captureBackend: 'Capture backend', streamProfile: 'Quality profile', cdpFps: 'CDP FPS', cdpQuality: 'CDP JPEG quality', cdpMaxWidth: 'CDP max width', cdpBackstopIntervalMs: 'CDP recovery interval', ffmpegFps: 'FFmpeg FPS', ffmpegMaxWidth: 'FFmpeg max width', ffmpegBitrateKbps: 'FFmpeg bitrate', ffmpegEncoder: 'FFmpeg encoder', ffmpegPath: 'FFmpeg binary path', githubMirror: 'GitHub mirror', fpsUnit: 'fps', pxUnit: 'px', kbpsUnit: 'kbps', msUnit: 'ms',
+			captureBackend: 'Capture backend', streamProfile: 'Quality profile', cdpFps: 'CDP FPS', cdpQuality: 'CDP JPEG quality', cdpMaxWidth: 'CDP max width', cdpBackstopIntervalMs: 'CDP recovery interval', nativeFps: 'Full window FPS', nativeMaxWidth: 'Full window max width', nativeQuality: 'Full window quality (100 = lossless)', ffmpegFps: 'FFmpeg FPS', ffmpegMaxWidth: 'FFmpeg max width', ffmpegBitrateKbps: 'FFmpeg bitrate', ffmpegEncoder: 'FFmpeg encoder', ffmpegPath: 'FFmpeg binary path', githubMirror: 'GitHub mirror', fpsUnit: 'fps', pxUnit: 'px', kbpsUnit: 'kbps', msUnit: 'ms',
 			ffmpegTitle: 'FFmpeg installation', ffmpegReady: 'Ready', ffmpegMissing: 'No compatible FFmpeg found', ffmpegChecking: 'Checking local FFmpeg…', ffmpegDownloading: 'Downloading FFmpeg…', ffmpegVerifying: 'Verifying download…', ffmpegExtracting: 'Extracting FFmpeg…', ffmpegProbing: 'Checking capture capabilities…', ffmpegUnsupported: 'FFmpeg capture is unsupported on this platform', ffmpegFailed: 'FFmpeg installation failed', ffmpegSource: 'Source', ffmpegVersion: 'Version', ffmpegInstall: 'Download FFmpeg', ffmpegReinstall: 'Reinstall', ffmpegRecheck: 'Recheck', ffmpegRequired: 'FFmpeg (install required)', githubMirrorHint: 'Replaces https://github.com for GitHub downloads, for example https://gh-proxy.com/github.com.',
 			egoCliArgs: 'Extra ego-browser CLI args', egoCliArgsHint: 'Appended to `ego-browser nodejs` argv. Takes effect on the next ego_* call. Blocked: --status/--stop/--open/--spaces/--help (they exit before the heredoc runs). Use --headless via the headless env instead.',
 			chromeArgs: 'Extra Chrome launch args', chromeArgsHint: 'Appended to the Chrome launch argv. Takes effect on the next browser cold start (the browser is a singleton — run `ego-browser --stop` or restart DSH to relaunch). Blocked: --user-data-dir/--remote-debugging-port/--remote-allow-origins/--headless/--no-startup-window/--proxy-server (use EGO_LINUX_PROXY for the proxy).',
@@ -158,7 +158,7 @@ declare function require(id: string): any
 			useMockKeychainHint: '仅 macOS。Chrome 156+/macOS 26+ 可能不再把 cookie 写入磁盘（浏览器重启后登录态丢失，issue #93）；开启后 Chrome 改用 mock/test Keychain，cookie jar 恢复落盘——写入约 60 秒后才出现，不是立即。会降低静态 cookie 加密强度，未遇到该问题请保持关闭。需要浏览器冷启动（`ego-browser --stop` 或重启 DSH）。',
 			useMockKeychainOff: '关闭（默认；使用登录 Keychain）',
 			useMockKeychainOn: '开启（mock Keychain，修复 macOS cookie 丢失）',
-			captureBackend: '捕获后端', streamProfile: '画质档位', cdpFps: 'CDP 帧率', cdpQuality: 'CDP JPEG 质量', cdpMaxWidth: 'CDP 最大宽度', cdpBackstopIntervalMs: 'CDP 恢复截图间隔', ffmpegFps: 'FFmpeg 帧率', ffmpegMaxWidth: 'FFmpeg 最大宽度', ffmpegBitrateKbps: 'FFmpeg 码率', ffmpegEncoder: 'FFmpeg 编码器', ffmpegPath: 'FFmpeg 路径', githubMirror: 'GitHub 镜像源', fpsUnit: 'fps', pxUnit: 'px', kbpsUnit: 'kbps', msUnit: 'ms',
+			captureBackend: '捕获后端', streamProfile: '画质档位', cdpFps: 'CDP 帧率', cdpQuality: 'CDP JPEG 质量', cdpMaxWidth: 'CDP 最大宽度', cdpBackstopIntervalMs: 'CDP 恢复截图间隔', nativeFps: '完整窗口帧率', nativeMaxWidth: '完整窗口最大宽度', nativeQuality: '完整窗口画质（100 为无损）', ffmpegFps: 'FFmpeg 帧率', ffmpegMaxWidth: 'FFmpeg 最大宽度', ffmpegBitrateKbps: 'FFmpeg 码率', ffmpegEncoder: 'FFmpeg 编码器', ffmpegPath: 'FFmpeg 路径', githubMirror: 'GitHub 镜像源', fpsUnit: 'fps', pxUnit: 'px', kbpsUnit: 'kbps', msUnit: 'ms',
 			ffmpegTitle: 'FFmpeg 安装', ffmpegReady: '已就绪', ffmpegMissing: '未找到兼容的 FFmpeg', ffmpegChecking: '正在检测本机 FFmpeg…', ffmpegDownloading: '正在下载 FFmpeg…', ffmpegVerifying: '正在校验下载文件…', ffmpegExtracting: '正在解压 FFmpeg…', ffmpegProbing: '正在检查捕获能力…', ffmpegUnsupported: '当前平台不支持 FFmpeg 捕获', ffmpegFailed: 'FFmpeg 安装失败', ffmpegSource: '来源', ffmpegVersion: '版本', ffmpegInstall: '下载 FFmpeg', ffmpegReinstall: '重新下载', ffmpegRecheck: '重新检测', ffmpegRequired: 'FFmpeg（需要安装）', githubMirrorHint: '替换 https://github.com，例如 https://gh-proxy.com/github.com。',
 			egoCliArgs: 'ego-browser CLI 附加参数', egoCliArgsHint: '追加到 `ego-browser nodejs` argv。下一次 ego_* 工具调用即生效。禁止：--status/--stop/--open/--spaces/--help（会在 heredoc 执行前退出）。--headless 请走 headless 环境变量。',
 			chromeArgs: 'Chrome 启动附加参数', chromeArgsHint: '追加到 Chrome 启动 argv。仅在浏览器下次冷启动时生效（浏览器是单例常驻——需运行 `ego-browser --stop` 或重启 DSH 才会重新启动）。禁止：--user-data-dir/--remote-debugging-port/--remote-allow-origins/--headless/--no-startup-window/--proxy-server（代理请用 EGO_LINUX_PROXY）。',
@@ -512,7 +512,7 @@ declare function require(id: string): any
 				status: 'idle',        // 'idle' | 'loading' | 'ready'
 				available: false,      // true after a successful /ego/api/get
 				writable: false,       // false when settings service is absent
-				draft: { isolateSpaces: false, disableFrameRelay: false, residentExecutor: false, residentIdleMin: '30', idleTimeoutMin: '0', chromePath: '', useMockKeychain: false, captureBackend: 'auto', streamProfile: 'balanced', cdpFps: '20', cdpQuality: '55', cdpMaxWidth: '1280', cdpBackstopIntervalMs: '3000', ffmpegFps: '20', ffmpegMaxWidth: '1280', ffmpegBitrateKbps: '4000', ffmpegEncoder: 'auto', ffmpegPath: '', githubMirror: '', egoCliArgs: '', chromeArgs: '' },
+				draft: { isolateSpaces: false, disableFrameRelay: false, residentExecutor: false, residentIdleMin: '30', idleTimeoutMin: '0', chromePath: '', useMockKeychain: false, captureBackend: 'auto', streamProfile: 'balanced', cdpFps: '20', cdpQuality: '55', cdpMaxWidth: '1280', cdpBackstopIntervalMs: '3000', nativeFps: '2', nativeMaxWidth: '960', nativeQuality: '60', ffmpegFps: '20', ffmpegMaxWidth: '1280', ffmpegBitrateKbps: '4000', ffmpegEncoder: 'auto', ffmpegPath: '', githubMirror: '', egoCliArgs: '', chromeArgs: '' },
 				ffmpegStatus: { state: 'checking', canDownload: false, canSelectFfmpeg: false },
 				dirty: false,
 				applyState: { kind: 'idle' }, // 'idle' | 'saving' | 'saved' | 'error'
@@ -569,7 +569,7 @@ declare function require(id: string): any
 				chromePath: config.chromePath || '',
 				useMockKeychain: config.useMockKeychain === true || config.useMockKeychain === 'true' || config.useMockKeychain === 1 || config.useMockKeychain === '1',
 				captureBackend: config.captureBackend === 'ffmpeg' && !ffmpegStatus.canSelectFfmpeg ? 'cdp' : (config.captureBackend || 'auto'), streamProfile: config.streamProfile || 'balanced',
-				cdpFps: String(config.cdpFps ?? 20), cdpQuality: String(config.cdpQuality ?? 55), cdpMaxWidth: String(config.cdpMaxWidth ?? 1280), cdpBackstopIntervalMs: String(config.cdpBackstopIntervalMs ?? 3000),
+				cdpFps: String(config.cdpFps ?? 20), cdpQuality: String(config.cdpQuality ?? 55), cdpMaxWidth: String(config.cdpMaxWidth ?? 1280), cdpBackstopIntervalMs: String(config.cdpBackstopIntervalMs ?? 3000), nativeFps: String(config.nativeFps ?? 2), nativeMaxWidth: String(config.nativeMaxWidth ?? 960), nativeQuality: String(config.nativeQuality ?? 60),
 				ffmpegFps: String(config.ffmpegFps ?? 20), ffmpegMaxWidth: String(config.ffmpegMaxWidth ?? 1280), ffmpegBitrateKbps: String(config.ffmpegBitrateKbps ?? 4000), ffmpegEncoder: config.ffmpegEncoder || 'auto', ffmpegPath: config.ffmpegPath || '', githubMirror: config.githubMirror || '',
 				egoCliArgs: config.egoCliArgs || '', chromeArgs: config.chromeArgs || '',
 			}
@@ -650,7 +650,7 @@ declare function require(id: string): any
 			var NUMERIC_FIELDS = {
 				idleTimeoutMin: { min: 0, max: 1440, def: 0 },
 				residentIdleMin: { min: 0, max: 1440, def: 30 },
-				cdpFps: { min: 5, max: 30, def: 20 }, cdpQuality: { min: 1, max: 100, def: 55 }, cdpMaxWidth: { min: 320, max: 1920, def: 1280 }, cdpBackstopIntervalMs: { min: 1000, max: 10000, def: 3000 }, ffmpegFps: { min: 5, max: 30, def: 20 }, ffmpegMaxWidth: { min: 320, max: 1920, def: 1280 }, ffmpegBitrateKbps: { min: 500, max: 20000, def: 4000 },
+				cdpFps: { min: 5, max: 30, def: 20 }, cdpQuality: { min: 1, max: 100, def: 55 }, cdpMaxWidth: { min: 320, max: 1920, def: 1280 }, cdpBackstopIntervalMs: { min: 1000, max: 10000, def: 3000 }, nativeFps: { min: 1, max: 10, def: 2 }, nativeMaxWidth: { min: 320, max: 1920, def: 960 }, nativeQuality: { min: 1, max: 100, def: 60 }, ffmpegFps: { min: 5, max: 30, def: 20 }, ffmpegMaxWidth: { min: 320, max: 1920, def: 1280 }, ffmpegBitrateKbps: { min: 500, max: 20000, def: 4000 },
 			}
 			this.staged.forEach(function (v, k) {
 				var spec = NUMERIC_FIELDS[k]
@@ -701,7 +701,7 @@ declare function require(id: string): any
 				chromePath: config.chromePath || '',
 				useMockKeychain: config.useMockKeychain === true || config.useMockKeychain === 'true' || config.useMockKeychain === 1 || config.useMockKeychain === '1',
 				captureBackend: config.captureBackend === 'ffmpeg' && ffmpegStatus && !ffmpegStatus.canSelectFfmpeg ? 'cdp' : (config.captureBackend || 'auto'), streamProfile: config.streamProfile || 'balanced',
-				cdpFps: String(config.cdpFps ?? 20), cdpQuality: String(config.cdpQuality ?? 55), cdpMaxWidth: String(config.cdpMaxWidth ?? 1280), cdpBackstopIntervalMs: String(config.cdpBackstopIntervalMs ?? 3000),
+				cdpFps: String(config.cdpFps ?? 20), cdpQuality: String(config.cdpQuality ?? 55), cdpMaxWidth: String(config.cdpMaxWidth ?? 1280), cdpBackstopIntervalMs: String(config.cdpBackstopIntervalMs ?? 3000), nativeFps: String(config.nativeFps ?? 2), nativeMaxWidth: String(config.nativeMaxWidth ?? 960), nativeQuality: String(config.nativeQuality ?? 60),
 				ffmpegFps: String(config.ffmpegFps ?? 20), ffmpegMaxWidth: String(config.ffmpegMaxWidth ?? 1280), ffmpegBitrateKbps: String(config.ffmpegBitrateKbps ?? 4000), ffmpegEncoder: config.ffmpegEncoder || 'auto', ffmpegPath: config.ffmpegPath || '', githubMirror: config.githubMirror || '',
 				egoCliArgs: config.egoCliArgs || '', chromeArgs: config.chromeArgs || '',
 			}
@@ -991,6 +991,9 @@ declare function require(id: string): any
 						h(SettingsField, { id: 'plugin-config-ego-browser-cdpquality', label: t('cdpQuality'), value: state.draft.cdpQuality, numeric: true, narrow: true, min: 1, max: 100, step: 1, disabled: busy, onEdit: function (v) { controller.edit('cdpQuality', v) } }),
 						h(SettingsField, { id: 'plugin-config-ego-browser-cdpwidth', label: t('cdpMaxWidth'), value: state.draft.cdpMaxWidth, numeric: true, narrow: true, unit: t('pxUnit'), min: 320, max: 1920, step: 40, disabled: busy, onEdit: function (v) { controller.edit('cdpMaxWidth', v) } }),
 						h(SettingsField, { id: 'plugin-config-ego-browser-backstop', label: t('cdpBackstopIntervalMs'), value: state.draft.cdpBackstopIntervalMs, numeric: true, narrow: true, unit: t('msUnit'), min: 1000, max: 10000, step: 100, disabled: busy, onEdit: function (v) { controller.edit('cdpBackstopIntervalMs', v) } }),
+						h(SettingsField, { id: 'plugin-config-ego-browser-nativefps', label: t('nativeFps'), value: state.draft.nativeFps, numeric: true, narrow: true, unit: t('fpsUnit'), min: 1, max: 10, step: 1, disabled: busy, onEdit: function (v) { controller.edit('nativeFps', v) } }),
+						h(SettingsField, { id: 'plugin-config-ego-browser-nativewidth', label: t('nativeMaxWidth'), value: state.draft.nativeMaxWidth, numeric: true, narrow: true, unit: t('pxUnit'), min: 320, max: 1920, step: 40, disabled: busy, onEdit: function (v) { controller.edit('nativeMaxWidth', v) } }),
+						h(SettingsField, { id: 'plugin-config-ego-browser-nativequality', label: t('nativeQuality'), value: state.draft.nativeQuality, numeric: true, narrow: true, min: 1, max: 100, step: 1, disabled: busy, onEdit: function (v) { controller.edit('nativeQuality', v) } }),
 						h(SettingsField, { id: 'plugin-config-ego-browser-fffps', label: t('ffmpegFps'), value: state.draft.ffmpegFps, numeric: true, narrow: true, unit: t('fpsUnit'), min: 5, max: 30, step: 1, disabled: busy, onEdit: function (v) { controller.edit('ffmpegFps', v) } }),
 						h(SettingsField, { id: 'plugin-config-ego-browser-ffwidth', label: t('ffmpegMaxWidth'), value: state.draft.ffmpegMaxWidth, numeric: true, narrow: true, unit: t('pxUnit'), min: 320, max: 1920, step: 40, disabled: busy, onEdit: function (v) { controller.edit('ffmpegMaxWidth', v) } }),
 						h(SettingsField, { id: 'plugin-config-ego-browser-ffbitrate', label: t('ffmpegBitrateKbps'), value: state.draft.ffmpegBitrateKbps, numeric: true, narrow: true, unit: t('kbpsUnit'), min: 500, max: 20000, step: 250, disabled: busy, onEdit: function (v) { controller.edit('ffmpegBitrateKbps', v) } }),
@@ -1557,7 +1560,6 @@ declare function require(id: string): any
 		var NATIVE_FRAME_ROUTE = '/api/ego/native/frame'
 		var NATIVE_INPUT_ROUTE = '/api/ego/native/input'
 		var NATIVE_POLL_MS = 400
-		var NATIVE_MAX_WIDTH = 960
 		var NATIVE_KEYS = { Enter: 1, Escape: 1, Tab: 1, Backspace: 1, Delete: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Home: 1, End: 1, PageUp: 1, PageDown: 1 }
 		// Mouse moves are coalesced: at most one in flight, at least this far apart.
 		var MOVE_MIN_MS = 50
@@ -3528,18 +3530,18 @@ declare function require(id: string): any
 					var started = Date.now()
 					// The worker answers `unchanged` instead of resending a frame whose
 					// tag we already hold, so a still window costs almost nothing.
-					post(NATIVE_FRAME_ROUTE, { targetId: targetId, maxWidth: NATIVE_MAX_WIDTH, etag: etag }).then(function (data) {
+					post(NATIVE_FRAME_ROUTE, { targetId: targetId, etag: etag }).then(function (data) {
 						if (stopped) return
 						if (data && data.ok) {
 							sizeRef.current = { width: data.width, height: data.height }
 							if (data.jpeg) {
 								etag = data.etag || null
-								if (imgRef.current) imgRef.current.src = 'data:image/jpeg;base64,' + data.jpeg
+								if (imgRef.current) imgRef.current.src = 'data:' + (data.mime || 'image/jpeg') + ';base64,' + data.jpeg
 							}
 							setNote(wt('nativeKeysHint'))
 							// Rest at least as long as the frame took, so a slow link is
 							// never more than half busy with frames and input stays snappy.
-							return schedule(Math.max(NATIVE_POLL_MS, Date.now() - started))
+							return schedule(Math.max(data.pollMs > 0 ? data.pollMs : NATIVE_POLL_MS, Date.now() - started))
 						}
 						// The target may have gone away while the page stream is paused.
 						if (props.onStale) props.onStale()

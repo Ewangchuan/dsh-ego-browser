@@ -4,8 +4,10 @@ import {
   buildGrabArgs,
   buildXdotoolArgs,
   clampBounds,
+  frameMime,
   frameTag,
   grabFrame,
+  jpegQscale,
   parseDisplayEnv,
   readBrowserDisplay,
   sendNativeInput,
@@ -71,6 +73,18 @@ describe('native window: geometry', () => {
     const args = buildGrabArgs({ display: ':99', bounds })
     expect(args[args.indexOf('-vf') + 1]).toBe('scale=960:-2')
     expect(args[args.indexOf('-q:v') + 1]).toBe('14')
+  })
+
+  it('maps 1-100 quality onto the ffmpeg scale and switches to PNG at 100', () => {
+    expect([1, 30, 60, 99].map(jpegQscale)).toEqual([31, 23, 14, 2])
+    expect(frameMime(99)).toBe('image/jpeg')
+    expect(frameMime(100)).toBe('image/png')
+    const png = buildGrabArgs({ display: ':99', bounds, maxWidth: 1920, quality: 100 })
+    expect(png).not.toContain('-q:v')
+    expect(png).not.toContain('-vf')
+    expect(png.slice(-5)).toEqual(['-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'])
+    const best = buildGrabArgs({ display: ':99', bounds, maxWidth: 1920, quality: 99 })
+    expect(best[best.indexOf('-q:v') + 1]).toBe('2')
   })
 
   it('tags identical frames identically so the panel can skip them', () => {

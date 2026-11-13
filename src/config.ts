@@ -41,6 +41,9 @@ const prefs = {
   cdpQuality: z.number().min(1).max(100).step(1).description('CDP JPEG quality.'),
   cdpMaxWidth: z.number().min(320).max(1920).step(40).description('CDP frame max width.'),
   cdpBackstopIntervalMs: z.number().min(1000).max(10000).step(100).description('CDP recovery screenshot interval.'),
+  nativeFps: z.number().min(1).max(10).step(1).description('Full-window mode: frames per second (upper bound; a slow link lowers it).'),
+  nativeMaxWidth: z.number().min(320).max(1920).step(40).description('Full-window mode: frame max width. At or above the window width nothing is downscaled.'),
+  nativeQuality: z.number().min(1).max(100).step(1).description('Full-window mode: JPEG quality; 100 sends lossless PNG (several times larger).'),
   ffmpegFps: z.number().min(5).max(30).step(1).description('FFmpeg video FPS.'),
   ffmpegMaxWidth: z.number().min(320).max(1920).step(40).description('FFmpeg video max width.'),
   ffmpegBitrateKbps: z.number().min(500).max(20000).step(250).description('FFmpeg target video bitrate in kbps.'),
@@ -275,6 +278,9 @@ export function resolveConfig(config: RawConfig = {}): ResolvedConfig {
     captureBackend: oneOf(config.captureBackend, ['auto', 'cdp', 'ffmpeg'], 'auto'),
     streamProfile: selectedProfile,
     cdpFps: finiteIn(config.cdpFps, 5, 30) ? config.cdpFps : legacyFps,
+    nativeFps: finiteIn(config.nativeFps, 1, 10) ? config.nativeFps : 2,
+    nativeMaxWidth: finiteIn(config.nativeMaxWidth, 320, 1920) ? config.nativeMaxWidth : 960,
+    nativeQuality: finiteIn(config.nativeQuality, 1, 100) ? config.nativeQuality : 60,
     cdpQuality: finiteIn(config.cdpQuality, 1, 100) ? config.cdpQuality : (finiteIn(config.screencastQuality, 1, 100) ? config.screencastQuality : 55),
     // 1280 (not 960): a 960 cap downsizes a 1264-wide viewport and the panel then
     // upscales it, which is the "soft/garbled text" report. 1280 keeps the common

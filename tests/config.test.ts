@@ -6,6 +6,7 @@ describe("dual capture config", () => {
     expect(resolveConfig({})).toEqual({
       chromePath: "", captureBackend: "auto", streamProfile: "balanced",
       cdpFps: 20, cdpQuality: 55, cdpMaxWidth: 1280, cdpBackstopIntervalMs: 3000,
+      nativeFps: 2, nativeMaxWidth: 960, nativeQuality: 60,
       ffmpegFps: 20, ffmpegMaxWidth: 1280, ffmpegBitrateKbps: 4000, ffmpegEncoder: "auto", ffmpegPath: "", githubMirror: "",
       egoCliArgs: "", chromeArgs: "", isolateSpaces: false, sessionScopedSpaces: true, idleTimeoutMin: 0, disableFrameRelay: false,
       residentExecutor: false, residentIdleMin: 30, tuiAutoOpenPanel: false, rulesPrompt: true,
@@ -18,6 +19,7 @@ describe("dual capture config", () => {
     expect(resolveConfig({ castFpsCap: 60, screencastQuality: 70, screencastMaxWidth: 1200, backstopIntervalMs: 5000 })).toEqual({
       chromePath: "", captureBackend: "auto", streamProfile: "balanced",
       cdpFps: 30, cdpQuality: 70, cdpMaxWidth: 1200, cdpBackstopIntervalMs: 5000,
+      nativeFps: 2, nativeMaxWidth: 960, nativeQuality: 60,
       ffmpegFps: 20, ffmpegMaxWidth: 1280, ffmpegBitrateKbps: 4000, ffmpegEncoder: "auto", ffmpegPath: "", githubMirror: "",
       egoCliArgs: "", chromeArgs: "", isolateSpaces: false, sessionScopedSpaces: true, idleTimeoutMin: 0, disableFrameRelay: false,
       residentExecutor: false, residentIdleMin: 30, tuiAutoOpenPanel: false, rulesPrompt: true,
@@ -193,5 +195,14 @@ describe("TUI panel preference", () => {
     expect(resolveConfig({}).tuiAutoOpenPanel).toBe(false);
     expect(resolveConfig({ tuiAutoOpenPanel: true }).tuiAutoOpenPanel).toBe(true);
     expect(resolveConfig({ tuiAutoOpenPanel: "1" } as any).tuiAutoOpenPanel).toBe(true);
+  });
+});
+
+describe("full-window capture config", () => {
+  it("accepts user values in range and falls back to defaults otherwise", () => {
+    const set = resolveConfig({ nativeFps: 5, nativeMaxWidth: 1920, nativeQuality: 100 });
+    expect([set.nativeFps, set.nativeMaxWidth, set.nativeQuality]).toEqual([5, 1920, 100]);
+    const bad = resolveConfig({ nativeFps: 0, nativeMaxWidth: 99999, nativeQuality: -1 });
+    expect([bad.nativeFps, bad.nativeMaxWidth, bad.nativeQuality]).toEqual([2, 960, 60]);
   });
 });

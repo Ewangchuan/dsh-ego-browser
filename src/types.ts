@@ -164,6 +164,10 @@ export interface ResolvedConfig {
   cdpQuality: number
   cdpMaxWidth: number
   cdpBackstopIntervalMs: number
+  /** Full-window mode: frame rate upper bound, frame max width, 1–100 quality (100 = lossless PNG). */
+  nativeFps: number
+  nativeMaxWidth: number
+  nativeQuality: number
   ffmpegFps: number
   ffmpegMaxWidth: number
   ffmpegBitrateKbps: number
