@@ -5203,11 +5203,20 @@ const NATIVE_KEYS = {
 const NATIVE_TEXT_MAX = 500;
 /**
 * Frame defaults, measured on an image-heavy page at 1280x900: 1280 wide at
-* q6 is ~214 KB per frame, 960 wide at q14 is ~78 KB and still reads fine for
+* qscale 6 is ~214 KB per frame, 960 wide at quality 60 (qscale 14) is ~78 KB and still reads fine for
 * a prompt-handling view. Frames travel base64-encoded (+33%), so this matters.
 */
 const NATIVE_FRAME_MAX_WIDTH = 960;
-const NATIVE_FRAME_QUALITY = 14;
+const NATIVE_FRAME_QUALITY = 60;
+/** 1–100 quality → ffmpeg MJPEG qscale (2 best … 31 worst). 60 → 14. */
+function jpegQscale(quality) {
+	const q = Math.min(100, Math.max(1, quality));
+	return Math.round(31 - (q - 1) / 99 * 29);
+}
+/** Quality 100 means "do not compress lossily": the frame is sent as PNG. */
+function frameMime(quality) {
+	return quality >= 100 ? "image/png" : "image/jpeg";
+}
 /** Short content tag: lets the panel skip a frame it already shows. */
 function frameTag(jpeg) {
 	return createHash("sha1").update(jpeg).digest("base64url").slice(0, 16);
@@ -5278,7 +5287,8 @@ function buildGrabArgs({ display, bounds, maxWidth = NATIVE_FRAME_MAX_WIDTH, qua
 	];
 	const width = Math.max(2, Math.floor(maxWidth / 2) * 2);
 	if (width < bounds.width) args.push("-vf", `scale=${width}:-2`);
-	args.push("-q:v", String(Math.min(31, Math.max(2, Math.round(quality)))), "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1");
+	if (frameMime(quality) === "image/png") args.push("-f", "image2pipe", "-vcodec", "png", "pipe:1");
+	else args.push("-q:v", String(jpegQscale(quality)), "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1");
 	return args;
 }
 function finite(value) {
@@ -5384,7 +5394,7 @@ async function grabFrame({ env, bounds, ffmpegPath = "ffmpeg", maxWidth, quality
 			env: childEnv(env),
 			timeout: 6e3,
 			encoding: "buffer",
-			maxBuffer: 8 * 1024 * 1024
+			maxBuffer: 32 * 1024 * 1024
 		});
 		const buffer = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
 		if (buffer.length < 4) throw new NativeWindowError("native-grab-empty", "screen grab returned no image");
@@ -5425,6 +5435,9 @@ let castConfig = {
 	cdpQuality: 55,
 	cdpMaxWidth: 1280,
 	cdpBackstopIntervalMs: 3e3,
+	nativeFps: 2,
+	nativeMaxWidth: NATIVE_FRAME_MAX_WIDTH,
+	nativeQuality: NATIVE_FRAME_QUALITY,
 	ffmpegFps: 20,
 	ffmpegMaxWidth: 1280,
 	ffmpegBitrateKbps: 4e3,
@@ -5493,6 +5506,9 @@ function normalizeConfig(input) {
 	numberValue("cdpQuality", 1, 100);
 	numberValue("cdpMaxWidth", 320, 1920);
 	numberValue("cdpBackstopIntervalMs", 1e3, 1e4);
+	numberValue("nativeFps", 1, 10);
+	numberValue("nativeMaxWidth", 320, 1920);
+	numberValue("nativeQuality", 1, 100);
 	numberValue("ffmpegFps", 5, 30);
 	numberValue("ffmpegMaxWidth", 320, 1920);
 	numberValue("ffmpegBitrateKbps", 500, 2e4);
@@ -6157,25 +6173,30 @@ async function main() {
 						});
 						return sendJson(res, 200, { ok: true });
 					}
-					const maxWidth = typeof body.maxWidth === "number" && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : NATIVE_FRAME_MAX_WIDTH;
+					const quality = castConfig.nativeQuality;
 					const jpeg = await grabFrame({
 						env,
 						bounds,
 						ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || "ffmpeg",
-						maxWidth
+						maxWidth: castConfig.nativeMaxWidth,
+						quality
 					});
+					const frame = {
+						width: bounds.width,
+						height: bounds.height,
+						pollMs: Math.round(1e3 / castConfig.nativeFps),
+						mime: frameMime(quality)
+					};
 					const etag = frameTag(jpeg);
 					if (body.etag === etag) return sendJson(res, 200, {
 						ok: true,
 						unchanged: true,
 						etag,
-						width: bounds.width,
-						height: bounds.height
+						...frame
 					});
 					return sendJson(res, 200, {
 						ok: true,
-						width: bounds.width,
-						height: bounds.height,
+						...frame,
 						etag,
 						jpeg: jpeg.toString("base64")
 					});
