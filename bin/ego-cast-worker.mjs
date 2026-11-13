@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { execFile, execFileSync, spawn } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
 
 //#region rolldown:runtime
 var __create = Object.create;
@@ -2088,7 +2089,7 @@ var require_websocket = /* @__PURE__ */ __commonJS({ "node_modules/.pnpm/ws@8.22
 	const net = __require("net");
 	const querystring = __require("querystring");
 	const tls = __require("tls");
-	const { randomBytes, createHash: createHash$1 } = __require("crypto");
+	const { randomBytes, createHash: createHash$2 } = __require("crypto");
 	const { Duplex: Duplex$2, Readable } = __require("stream");
 	const { URL: URL$1 } = __require("url");
 	const PerMessageDeflate$2 = require_permessage_deflate();
@@ -2768,7 +2769,7 @@ var require_websocket = /* @__PURE__ */ __commonJS({ "node_modules/.pnpm/ws@8.22
 				abortHandshake$1(websocket, socket, "Invalid Upgrade header");
 				return;
 			}
-			const digest = createHash$1("sha1").update(key + GUID$1).digest("base64");
+			const digest = createHash$2("sha1").update(key + GUID$1).digest("base64");
 			if (res.headers["sec-websocket-accept"] !== digest) {
 				abortHandshake$1(websocket, socket, "Invalid Sec-WebSocket-Accept header");
 				return;
@@ -3249,7 +3250,7 @@ var require_websocket_server = /* @__PURE__ */ __commonJS({ "node_modules/.pnpm/
 	const EventEmitter = __require("events");
 	const http = __require("http");
 	const { Duplex } = __require("stream");
-	const { createHash } = __require("crypto");
+	const { createHash: createHash$1 } = __require("crypto");
 	const extension$1 = require_extension();
 	const PerMessageDeflate$1 = require_permessage_deflate();
 	const subprotocol$1 = require_subprotocol();
@@ -3518,7 +3519,7 @@ var require_websocket_server = /* @__PURE__ */ __commonJS({ "node_modules/.pnpm/
 				"HTTP/1.1 101 Switching Protocols",
 				"Upgrade: websocket",
 				"Connection: Upgrade",
-				`Sec-WebSocket-Accept: ${createHash("sha1").update(key + GUID).digest("base64")}`
+				`Sec-WebSocket-Accept: ${createHash$1("sha1").update(key + GUID).digest("base64")}`
 			];
 			const ws = new this.options.WebSocket(null, void 0, this.options);
 			if (protocols.size) {
@@ -5200,6 +5201,17 @@ const NATIVE_KEYS = {
 	" ": "space"
 };
 const NATIVE_TEXT_MAX = 500;
+/**
+* Frame defaults, measured on an image-heavy page at 1280x900: 1280 wide at
+* q6 is ~214 KB per frame, 960 wide at q14 is ~78 KB and still reads fine for
+* a prompt-handling view. Frames travel base64-encoded (+33%), so this matters.
+*/
+const NATIVE_FRAME_MAX_WIDTH = 960;
+const NATIVE_FRAME_QUALITY = 14;
+/** Short content tag: lets the panel skip a frame it already shows. */
+function frameTag(jpeg) {
+	return createHash("sha1").update(jpeg).digest("base64url").slice(0, 16);
+}
 /** Parse DISPLAY / XAUTHORITY out of a NUL-separated /proc/<pid>/environ blob. */
 function parseDisplayEnv(environ) {
 	let display = "";
@@ -5248,7 +5260,7 @@ function clampBounds(bounds, screen) {
 		height
 	};
 }
-function buildGrabArgs({ display, bounds, maxWidth = 1280, quality = 6 }) {
+function buildGrabArgs({ display, bounds, maxWidth = NATIVE_FRAME_MAX_WIDTH, quality = NATIVE_FRAME_QUALITY }) {
 	const args = [
 		"-nostdin",
 		"-loglevel",
@@ -6145,17 +6157,26 @@ async function main() {
 						});
 						return sendJson(res, 200, { ok: true });
 					}
-					const maxWidth = typeof body.maxWidth === "number" && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : 1280;
+					const maxWidth = typeof body.maxWidth === "number" && body.maxWidth >= 320 ? Math.min(body.maxWidth, 1920) : NATIVE_FRAME_MAX_WIDTH;
 					const jpeg = await grabFrame({
 						env,
 						bounds,
 						ffmpegPath: castConfig.ffmpegResolvedPath || castConfig.ffmpegPath || "ffmpeg",
 						maxWidth
 					});
+					const etag = frameTag(jpeg);
+					if (body.etag === etag) return sendJson(res, 200, {
+						ok: true,
+						unchanged: true,
+						etag,
+						width: bounds.width,
+						height: bounds.height
+					});
 					return sendJson(res, 200, {
 						ok: true,
 						width: bounds.width,
 						height: bounds.height,
+						etag,
 						jpeg: jpeg.toString("base64")
 					});
 				} catch (error) {
