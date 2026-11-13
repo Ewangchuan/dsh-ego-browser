@@ -187,7 +187,7 @@ declare function require(id: string): any
 		nativeWindow: 'Full window',
 		nativeWindowHint: 'Show and operate the whole browser window (address bar, native prompts) through the host display. Linux/X11 hosts only; low frame rate.',
 		nativeStarting: 'Opening the full window…',
-		nativePopping: 'Switching the agent browser to a real window…',
+		nativeHeadless: 'The agent browser is headless, so there is no window to show. "Pop out window" would restart it as a real window and lose the current page state. To avoid that, start the host with a display (e.g. DISPLAY=:99 on Xvfb) so the browser is never headless.',
 		nativeUnsupported: 'Full-window mode needs a Linux/X11 host.',
 		nativeError: 'Full window unavailable: {error}',
 		nativeKeysHint: 'Click the picture, then type. Clicks and keys go to the real window.',
@@ -276,7 +276,7 @@ declare function require(id: string): any
 		nativeWindow: '完整窗口',
 		nativeWindowHint: '通过宿主显示器显示并操作整个浏览器窗口（地址栏、原生弹窗都能看能点）。仅 Linux/X11 宿主可用，帧率较低。',
 		nativeStarting: '正在打开完整窗口…',
-		nativePopping: '正在把 agent 浏览器切换为真实窗口…',
+		nativeHeadless: 'agent 浏览器当前是无头模式，没有窗口可显示。点「弹出窗口」会把它重启为真实窗口，当前页面状态会丢失。要避免这种情况，请让宿主带显示器启动（例如 Xvfb 上的 DISPLAY=:99），浏览器就不会以无头模式运行。',
 		nativeUnsupported: '完整窗口模式需要 Linux/X11 宿主。',
 		nativeError: '完整窗口不可用：{error}',
 		nativeKeysHint: '先点一下画面再打字；点击和按键会送到真实窗口。',
@@ -3515,7 +3515,7 @@ declare function require(id: string): any
 				return { x: (e.clientX - rect.left) / rect.width * size.width, y: (e.clientY - rect.top) / rect.height * size.height }
 			}
 			React.useEffect(function () {
-				var stopped = false, timer = null, raised = false
+				var stopped = false, timer = null
 				function schedule(ms) { if (!stopped) timer = window.setTimeout(tick, ms) }
 				function tick() {
 					post(NATIVE_FRAME_ROUTE, { targetId: targetId, maxWidth: 1280 }).then(function (data) {
@@ -3527,12 +3527,12 @@ declare function require(id: string): any
 							return schedule(NATIVE_POLL_MS)
 						}
 						var code = data && data.code
-						if (code === 'native-window-headless' && !raised) {
-							raised = true
-							setNote(wt('nativePopping'))
-							return post('/api/ego/raise', {}).catch(function () { return null }).then(function () { schedule(1500) })
-						}
-						setNote(code === 'native-unsupported-platform' ? wt('nativeUnsupported') : wt('nativeError', { error: (data && (data.error || data.code)) || 'unavailable' }))
+						// Never pop the window out from here: swapping a headless browser
+						// for a headed one restarts it and the page being used is lost.
+						// Say so and leave that decision to the user.
+						setNote(code === 'native-window-headless' ? wt('nativeHeadless')
+							: code === 'native-unsupported-platform' ? wt('nativeUnsupported')
+							: wt('nativeError', { error: (data && (data.error || data.code)) || 'unavailable' }))
 						schedule(3000)
 					}).catch(function () {
 						if (stopped) return
